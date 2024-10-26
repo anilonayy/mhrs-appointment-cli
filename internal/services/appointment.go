@@ -211,37 +211,61 @@ func SelectClinic(flow *models.Flow) (err error) {
 	return nil
 }
 
-func SearchSlots() error {
-	var response models.SearchSlotResponse
-	payload := models.SearchSlot{
-		AksiyonID:     "200",
-		Cinsiyet:      "F",
-		EkRandevu:     true,
-		MHRSIlID:      341,
-		MHRSIlceID:    2048,
-		MHRSKlinikID:  157,
-		MHRSKurumID:   -1,
-		MuayeneYeriID: -1,
-		TumRandevular: false,
+func GetHospitals(flow *models.Flow) (response models.SearchClinicResponse, err error) {
+	err = WithSafeAuthorization(func() error {
+		token, err := GetJWTToken()
+		if err != nil {
+			return err
+		}
+
+		resp, err := resty.GetClient().R().
+			SetAuthToken(token).
+			SetResult(&response).
+			Get(fmt.Sprintf(config.GetConfig().HospitalSearchURL, flow.Province.ID, flow.District.ID, flow.Clinic.ID))
+
+		if err != nil {
+			return err
+		}
+
+		if resp.IsError() {
+			return errors.New(resp.String())
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return response, err
 	}
 
-	token, err := GetJWTToken()
+	return response, nil
+}
+
+func SelectHospital(flow *models.Flow) (err error) {
+	hospitals, err := GetHospitals(flow)
 	if err != nil {
 		return err
 	}
 
-	resp, err := resty.GetClient().R().
-		SetAuthToken("Bearer" + token).
-		SetBody(payload).
-		SetResult(&response).
-		Post(config.GetConfig().SlotSearchURL)
+	hospitals.Data = append([]models.NumericResponse{{Value: -1, Text: constants.NO_SELECTION}}, hospitals.Data...)
 
-	if err != nil {
-		panic(err)
+	var hospitalOptions []string
+
+	for _, p := range hospitals.Data {
+		hospitalOptions = append(hospitalOptions, p.Text)
 	}
 
-	if CheckUnauthorizedError(resp.String()) {
-		return errors.New(constants.UNAUTHORIZED_CODE)
+	inputProvince := ""
+
+	SelectOption("Please enter your hospital: ", hospitalOptions, &inputProvince)
+
+	for _, p := range hospitals.Data {
+		if inputProvince == p.Text {
+			(*flow).Hospital.Name = p.Text
+			(*flow).Hospital.ID = strconv.Itoa(p.Value)
+
+			break
+		}
 	}
 
 	return nil

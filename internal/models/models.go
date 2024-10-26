@@ -35,25 +35,6 @@ type SearchSlot struct {
 	RandevuZamaniList []string `json:"randevuZamaniList"`
 }
 
-type SearchSlotResponse struct {
-	Lang     string   `json:"lang"`
-	Success  bool     `json:"success"`
-	Infos    []string `json:"infos"`
-	Warnings []string `json:"warnings"`
-	Errors   []struct {
-		Kodu  string `json:"kodu"`
-		Mesaj string `json:"mesaj"`
-	} `json:"errors"`
-	Data struct {
-		Hastane       []string `json:"hastane"`
-		Semt          []string `json:"semt"`
-		Alternatif    []string `json:"alternatif"`
-		SemtAramasi   bool     `json:"semtAramasi"`
-		EkVar         bool     `json:"ekVar"`
-		AcilacakSekme int      `json:"acilacakSekme"`
-	} `json:"data"`
-}
-
 type SearchProvinceResponse struct {
 	Value    int    `json:"value"`
 	Text     string `json:"text"`
@@ -69,8 +50,10 @@ type SearchDistrictResponse struct {
 }
 
 type SearchClinicResponse struct {
-	Data []struct {
-		Value int    `json:"value"`
-		Text  string `json:"text"`
-	} `json:"data"`
+	Data []NumericResponse `json:"data"`
+}
+
+type NumericResponse struct {
+	Value int    `json:"value"`
+	Text  string `json:"text"`
 }
