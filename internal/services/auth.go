@@ -58,7 +58,12 @@ func GetJWTToken() (string, error) {
 		return "", err
 	}
 
-	if data["jwt"] == "" || data["expires"] == "" {
+	expiresInSec, err := strconv.Atoi(data["expires"])
+	if err != nil {
+		return "", err
+	}
+
+	if data["jwt"] == "" || data["expires"] == "" || time.Now().Unix() > int64(expiresInSec) {
 		err := UpdateJWTToken()
 		if err != nil {
 			return "", err

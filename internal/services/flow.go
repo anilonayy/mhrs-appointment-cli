@@ -18,10 +18,9 @@ func SetFlowStage(flow *models.Flow) {
 	case "2": // Select District
 		if err := SelectDistrict(&flow.District, flow.Province); err != nil {
 			fmt.Println(err)
-
-			SetFlowStage(flow)
 		}
 
 		(*flow).FlowStage = "3"
+		SetFlowStage(flow)
 	}
 }

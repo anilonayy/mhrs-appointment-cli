@@ -64,6 +64,6 @@ type SearchProvinceResponse struct {
 }
 
 type SearchDistrictResponse struct {
-	Value int    `json:"value"`
+	Value string `json:"value"`
 	Text  string `json:"text"`
 }

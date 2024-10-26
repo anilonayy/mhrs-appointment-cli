@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/anilonayy/mhrs-appointment-bot/config"
@@ -56,7 +57,6 @@ func SelectProvince(province *models.Option) (err error) {
 				provinceOptions = append(provinceOptions, cP.Text)
 			}
 		}
-
 	}
 
 	inputProvince := ""
@@ -67,7 +67,21 @@ func SelectProvince(province *models.Option) (err error) {
 		if inputProvince == p.Text {
 			(*province).Name = p.Text
 			(*province).ID = strconv.Itoa(p.Value)
+
+			break
 		}
+
+		if len(p.Children) > 0 {
+			for _, cP := range p.Children {
+				if inputProvince == cP.Text {
+					(*province).Name = cP.Text
+					(*province).ID = strconv.Itoa(cP.Value)
+
+					break
+				}
+			}
+		}
+
 	}
 
 	return err
@@ -79,6 +93,8 @@ func SelectDistrict(district *models.Option, province models.Option) (err error)
 		return err
 	}
 
+	districts = append([]models.SearchDistrictResponse{{Value: constants.NO_SELECTION, Text: constants.NO_SELECTION}}, districts...)
+
 	districtOptions := make([]string, len(districts))
 
 	for i, d := range districts {
@@ -88,10 +104,17 @@ func SelectDistrict(district *models.Option, province models.Option) (err error)
 	inputDistrict := ""
 	SelectOption("Please enter your district: ", districtOptions, &inputDistrict)
 
+	if inputDistrict == constants.NO_SELECTION {
+		(*district).Name = constants.NO_SELECTION
+		(*district).ID = constants.NO_SELECTION
+
+		return nil
+	}
+
 	for _, d := range districts {
 		if inputDistrict == d.Text {
 			(*district).Name = d.Text
-			(*district).ID = strconv.Itoa(d.Value)
+			(*district).ID = d.Value
 
 			return err
 		}
@@ -107,10 +130,12 @@ func GetDistricts(province models.Option) (response []models.SearchDistrictRespo
 			return err
 		}
 
+		fmt.Println(province, config.GetConfig().DistrictSearchURL+province.ID)
+
 		resp, err := resty.GetClient().R().
 			SetAuthToken(token).
 			SetResult(&response).
-			Post(config.GetConfig().DistrictSearchURL + province.ID)
+			Get(config.GetConfig().DistrictSearchURL + province.ID)
 
 		if err != nil {
 			return err

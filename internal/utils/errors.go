@@ -13,7 +13,9 @@ func CheckUnauthorizedError(resp string) bool {
 	}
 
 	if data["errors"] != nil {
-		if data["errors"].([]any)[0].(map[string]any)["kodu"] == constants.UNAUTHORIZED_CODE {
+		code := data["errors"].([]any)[0].(map[string]any)["kodu"]
+
+		if code == constants.UNAUTHORIZED_CODE || code == constants.ANOTHER_LOGIN_CODE {
 			return true
 		}
 	}
