@@ -270,3 +270,63 @@ func SelectHospital(flow *models.Flow) (err error) {
 
 	return nil
 }
+
+func GetDoctors(flow *models.Flow) (response models.SearchDoctorResponse, err error) {
+	err = WithSafeAuthorization(func() error {
+		token, err := GetJWTToken()
+		if err != nil {
+			return err
+		}
+
+		resp, err := resty.GetClient().R().
+			SetAuthToken(token).
+			SetResult(&response).
+			Get(fmt.Sprintf(config.GetConfig().DoctorSearchURL, flow.Hospital.ID, flow.Clinic.ID))
+
+		if err != nil {
+			return err
+		}
+
+		if resp.IsError() {
+			return errors.New(resp.String())
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return response, err
+	}
+
+	return response, nil
+}
+
+func SelectDoctor(flow *models.Flow) (err error) {
+	doctors, err := GetDoctors(flow)
+	if err != nil {
+		return err
+	}
+
+	doctors.Data = append([]models.NumericResponse{{Value: -1, Text: constants.NO_SELECTION}}, doctors.Data...)
+
+	var doctorOptions []string
+
+	for _, p := range doctors.Data {
+		doctorOptions = append(doctorOptions, p.Text)
+	}
+
+	inputProvince := ""
+
+	SelectOption("Please enter your doctor: ", doctorOptions, &inputProvince)
+
+	for _, p := range doctors.Data {
+		if inputProvince == p.Text {
+			(*flow).Doctor.Name = p.Text
+			(*flow).Doctor.ID = strconv.Itoa(p.Value)
+
+			break
+		}
+	}
+
+	return nil
+}

@@ -35,5 +35,13 @@ func SetFlowStage(flow *models.Flow) {
 
 		(*flow).FlowStage = "5"
 		SetFlowStage(flow)
+	case "5": // Select Doctor
+		if err := SelectDoctor(flow); err != nil {
+			panic(err)
+		}
+
+		(*flow).FlowStage = "6"
+		SetFlowStage(flow)
 	}
+
 }

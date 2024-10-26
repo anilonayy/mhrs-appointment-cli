@@ -57,3 +57,7 @@ type NumericResponse struct {
 	Value int    `json:"value"`
 	Text  string `json:"text"`
 }
+
+type SearchDoctorResponse struct {
+	Data []NumericResponse `json:"data"`
+}
