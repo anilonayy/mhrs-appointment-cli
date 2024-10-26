@@ -87,50 +87,12 @@ func SelectProvince(province *models.Option) (err error) {
 	return err
 }
 
-func SelectDistrict(district *models.Option, province models.Option) (err error) {
-	districts, err := GetDistricts(province)
-	if err != nil {
-		return err
-	}
-
-	districts = append([]models.SearchDistrictResponse{{Value: constants.NO_SELECTION, Text: constants.NO_SELECTION}}, districts...)
-
-	districtOptions := make([]string, len(districts))
-
-	for i, d := range districts {
-		districtOptions[i] = d.Text
-	}
-
-	inputDistrict := ""
-	SelectOption("Please enter your district: ", districtOptions, &inputDistrict)
-
-	if inputDistrict == constants.NO_SELECTION {
-		(*district).Name = constants.NO_SELECTION
-		(*district).ID = constants.NO_SELECTION
-
-		return nil
-	}
-
-	for _, d := range districts {
-		if inputDistrict == d.Text {
-			(*district).Name = d.Text
-			(*district).ID = d.Value
-
-			return err
-		}
-	}
-
-	return errors.New("invalid district")
-}
-
 func GetDistricts(province models.Option) (response []models.SearchDistrictResponse, err error) {
 	err = WithSafeAuthorization(func() error {
 		token, err := GetJWTToken()
 		if err != nil {
 			return err
 		}
-
-		fmt.Println(province, config.GetConfig().DistrictSearchURL+province.ID)
 
 		resp, err := resty.GetClient().R().
 			SetAuthToken(token).
@@ -153,6 +115,100 @@ func GetDistricts(province models.Option) (response []models.SearchDistrictRespo
 	}
 
 	return response, nil
+}
+
+func SelectDistrict(district *models.Option, province models.Option) (err error) {
+	districts, err := GetDistricts(province)
+	if err != nil {
+		return err
+	}
+
+	districts = append([]models.SearchDistrictResponse{{Value: constants.NO_SELECTION, Text: constants.NO_SELECTION}}, districts...)
+
+	districtOptions := make([]string, len(districts))
+
+	for i, d := range districts {
+		districtOptions[i] = d.Text
+	}
+
+	inputDistrict := ""
+	SelectOption("Please enter your district: ", districtOptions, &inputDistrict)
+
+	if inputDistrict == constants.NO_SELECTION {
+		(*district).Name = constants.NO_SELECTION
+		(*district).ID = "-1"
+
+		return nil
+	}
+
+	for _, d := range districts {
+		if inputDistrict == d.Text {
+			(*district).Name = d.Text
+			(*district).ID = d.Value
+
+			return err
+		}
+	}
+
+	return errors.New("invalid district")
+}
+
+func GetClinics(flow *models.Flow) (response models.SearchClinicResponse, err error) {
+	err = WithSafeAuthorization(func() error {
+		token, err := GetJWTToken()
+		if err != nil {
+			return err
+		}
+
+		resp, err := resty.GetClient().R().
+			SetAuthToken(token).
+			SetResult(&response).
+			Get(fmt.Sprintf(config.GetConfig().ClinicSearchURL, flow.Province.ID, flow.District.ID))
+
+		if err != nil {
+			return err
+		}
+
+		if resp.IsError() {
+			return errors.New(resp.String())
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return response, err
+	}
+
+	return response, nil
+}
+
+func SelectClinic(flow *models.Flow) (err error) {
+	clinics, err := GetClinics(flow)
+	if err != nil {
+		return err
+	}
+
+	var clinicOptions []string
+
+	for _, p := range clinics.Data {
+		clinicOptions = append(clinicOptions, p.Text)
+	}
+
+	inputProvince := ""
+
+	SelectOption("Please enter your clinic: ", clinicOptions, &inputProvince)
+
+	for _, p := range clinics.Data {
+		if inputProvince == p.Text {
+			(*flow).Clinic.Name = p.Text
+			(*flow).Clinic.ID = strconv.Itoa(p.Value)
+
+			break
+		}
+	}
+
+	return nil
 }
 
 func SearchSlots() error {

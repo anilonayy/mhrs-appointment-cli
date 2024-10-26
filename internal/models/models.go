@@ -67,3 +67,10 @@ type SearchDistrictResponse struct {
 	Value string `json:"value"`
 	Text  string `json:"text"`
 }
+
+type SearchClinicResponse struct {
+	Data []struct {
+		Value int    `json:"value"`
+		Text  string `json:"text"`
+	} `json:"data"`
+}
