@@ -1,3 +1,7 @@
 package constants
 
 const NO_SELECTION = "-FARK ETMEZ-"
+const NO_SELECTION_CODE = "-1"
+
+const UNAUTHORIZED_CODE = "LGN2000"
+const ANOTHER_LOGIN_CODE = "LGN2001"

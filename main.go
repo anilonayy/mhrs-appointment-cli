@@ -5,7 +5,8 @@ import (
 	"os"
 
 	"github.com/anilonayy/mhrs-appointment-bot/internal/models"
-	"github.com/anilonayy/mhrs-appointment-bot/internal/services"
+	flowservice "github.com/anilonayy/mhrs-appointment-bot/internal/services/flow"
+	"github.com/anilonayy/mhrs-appointment-bot/internal/ui"
 	"github.com/joho/godotenv"
 )
 
@@ -22,16 +23,16 @@ func main() {
 	}
 	menuStage := ""
 
-	services.SelectMenu(&menuStage)
+	ui.SelectMenu(&menuStage)
 
 	switch menuStage {
 	case "1": // Search Appointment
-		services.SetFlowStage(&flow)
+		flowservice.SetFlowStage(&flow)
 		break
 	case "3":
 		fmt.Println("Exiting...")
 		os.Exit(0)
 	default:
-		services.SelectMenu(&menuStage)
+		ui.SelectMenu(&menuStage)
 	}
 }
