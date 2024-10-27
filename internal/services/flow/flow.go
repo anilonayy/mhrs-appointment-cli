@@ -62,6 +62,16 @@ func SetFlowStage(flow *models.Flow) {
 
 		(*flow).FlowStage = "7"
 		SetFlowStage(flow)
-		//case "7": // Select Slot Times
+	case "7": // Select slot times
+		if err := appointment.SelectSlotTimes(flow); err != nil {
+			panic(err)
+		}
+
+		(*flow).FlowStage = "8"
+		SetFlowStage(flow)
+	case "8": // Search for appointments
+		if err := appointment.Do(flow); err != nil {
+			panic(err)
+		}
 	}
 }

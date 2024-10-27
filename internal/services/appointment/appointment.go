@@ -151,7 +151,11 @@ func SelectDistrict(flow *models.Flow) (err error) {
 		}
 	}
 
-	return errors.New("invalid flow")
+	if len((*flow).District) == 0 {
+		return errors.New("no district selected")
+	}
+
+	return nil
 }
 
 func GetClinics(flow *models.Flow) (response []models.NumericResponse, err error) {
@@ -372,6 +376,201 @@ func SelectDateRanges(flow *models.Flow) (err error) {
 
 	if _, err := time.Parse(time.DateOnly, flow.EndDate); err != nil {
 		return errors.New("invalid date")
+	}
+
+	return nil
+}
+
+func SelectSlotTimes(flow *models.Flow) (err error) {
+	slots := []string{"08:30-12:00", "13:00-16:30"}
+
+	ui.SelectOption("Please select your slot time: ", slots, &flow.SlotTime)
+
+	return nil
+}
+
+func GetAppointments(flow *models.Flow) ([]models.SingleAppointment, error) {
+	var response models.AppointmentResponse
+	var payload = models.SearchAppointment{
+		AksiyonID:         "200",
+		Cinsiyet:          "F",
+		MHRSIlID:          flow.Province.ID,
+		MHRSIlceID:        constants.NO_SELECTION_CODE,
+		MHRSKlinikID:      flow.Clinic.ID,
+		MHRSKurumID:       constants.NO_SELECTION_CODE,
+		MuayeneYeriID:     constants.NO_SELECTION_CODE,
+		MHRSHekimID:       constants.NO_SELECTION_CODE,
+		TumRandevular:     false,
+		EkRandevu:         false,
+		RandevuZamaniList: []string{},
+	}
+
+	err := auth.WithSafeAuthorization(func() error {
+		token, err := auth.GetJWTToken()
+		if err != nil {
+			return err
+		}
+
+		resp, err := resty.GetClient().R().
+			SetAuthToken(token).
+			SetBody(payload).
+			SetResult(&response).
+			Post(config.GetConfig().AppointmentSearchURL)
+
+		if err != nil {
+			return err
+		}
+
+		if resp.IsError() {
+			return errors.New(resp.String())
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(response.Data.Hastane) == 0 {
+		return nil, errors.New("no appointments found")
+	}
+
+	return response.Data.Hastane, nil
+}
+
+func formatAppointment(appointments models.SingleAppointment) string {
+	//return fmt.Sprintf("Hospital: %s, District: %s, Date: %s, Doctor: %s", appointments.Hospital.Name, appointments.Hospital.District, appointments.Date, appointments.Doctor.Name)
+	return fmt.Sprintf("Doctor: %s, District: %s, Date: %s, Hospital: %s", appointments.Doctor.Name+" "+appointments.Doctor.Surname, appointments.Hospital.District, appointments.Date, appointments.Hospital.Name[0:15]+"...")
+}
+
+func filterAppointments(appointments []models.SingleAppointment, flow *models.Flow) (filteredAppointments []models.SingleAppointment) {
+	for _, appointment := range appointments {
+		var (
+			doctorFilter   = false
+			hospitalFilter = false
+			dateFilter     = false
+		)
+
+		if len(flow.Doctor) > 0 && flow.Doctor[0].ID != constants.NO_SELECTION_CODE {
+			for _, doctor := range flow.Doctor {
+				if strconv.Itoa(appointment.Doctor.ID) == doctor.ID {
+					doctorFilter = true
+				}
+			}
+		} else {
+			doctorFilter = true
+		}
+
+		if flow.Hospital[0].ID != constants.NO_SELECTION_CODE {
+			for _, hospital := range flow.Hospital {
+				if appointment.Hospital.Name == hospital.Name {
+					hospitalFilter = true
+				}
+			}
+		} else {
+			hospitalFilter = true
+		}
+
+		if flow.StartDate != "" && flow.EndDate != "" {
+			startDate, _ := time.Parse(time.DateOnly, flow.StartDate)
+			endDate, _ := time.Parse(time.DateOnly, flow.EndDate)
+			appointmentDate, _ := time.Parse(time.DateOnly, appointment.Date)
+
+			if appointmentDate.After(startDate) && appointmentDate.Before(endDate) {
+				dateFilter = true
+			}
+		} else {
+			dateFilter = true
+		}
+
+		if doctorFilter && hospitalFilter && dateFilter {
+			filteredAppointments = append(filteredAppointments, appointment)
+		}
+
+	}
+
+	return filteredAppointments
+}
+
+func GetSlots(flow *models.Flow) ([]models.SearchSlotResponse, error) {
+	var response []models.SearchSlotResponse
+	var payload = models.SearchAppointment{
+		AksiyonID:         "200",
+		Cinsiyet:          "F",
+		MHRSIlID:          flow.Province.ID,
+		MHRSKlinikID:      flow.Clinic.ID,
+		MHRSKurumID:       flow.Hospital[0].ID,
+		MuayeneYeriID:     constants.NO_SELECTION_CODE,
+		MHRSHekimID:       flow.Doctor[0].ID,
+		TumRandevular:     false,
+		EkRandevu:         false,
+		RandevuZamaniList: []string{},
+	}
+
+	var err = auth.WithSafeAuthorization(func() error {
+		token, err := auth.GetJWTToken()
+		if err != nil {
+			return err
+		}
+
+		resp, err := resty.GetClient().R().
+			SetAuthToken(token).
+			SetResult(&response).
+			SetBody(payload).
+			Post(config.GetConfig().SlotSearchURL)
+
+		if err != nil {
+			return err
+		}
+
+		if resp.IsError() {
+			return errors.New(resp.String())
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return response, err
+	}
+
+	return response, nil
+}
+
+func Do(flow *models.Flow) error {
+	appointments, err := GetAppointments(flow)
+	if err != nil {
+		return err
+	}
+
+	if len(appointments) == 0 {
+		ui.PrintInfoMessage("No appointments found.")
+
+		return nil
+	}
+
+	appointments = filterAppointments(appointments, flow)
+
+	if len(appointments) == 0 {
+		ui.PrintInfoMessage("No appointments found for filters.")
+
+		return nil
+	}
+
+	fmt.Printf("Found %d appointments, slots searching..", len(appointments))
+
+	for _, appointment := range appointments {
+		(*flow).Doctor = []models.Option{{Name: appointment.Doctor.Name, ID: strconv.Itoa(appointment.Doctor.ID)}}
+		(*flow).Hospital = []models.Option{{Name: appointment.Hospital.Name, ID: strconv.Itoa(appointment.Hospital.ID)}}
+
+		slot, err := GetSlots(flow)
+		if err != nil {
+			// @todo: Fix this
+			return err
+		}
+
+		fmt.Println(slot)
 	}
 
 	return nil

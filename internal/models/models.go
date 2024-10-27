@@ -1,15 +1,15 @@
 package models
 
 type Flow struct {
-	FlowStage   string
-	Province    Option
-	District    []Option
-	Clinic      Option
-	Hospital    []Option
-	Doctor      []Option
-	StartDate   string
-	EndDate     string
-	WantedHours []string
+	FlowStage string
+	Province  Option
+	District  []Option
+	Clinic    Option
+	Hospital  []Option
+	Doctor    []Option
+	StartDate string
+	EndDate   string
+	SlotTime  string
 }
 
 type Option struct {
@@ -52,6 +52,7 @@ type SingleAppointment struct {
 }
 
 type Hospital struct {
+	ID         int     `json:"mhrsKurumId"`
 	Province   string  `json:"ilAdi"`
 	District   string  `json:"ilceAdi"`
 	Name       string  `json:"kurumAdi"`
@@ -61,6 +62,7 @@ type Hospital struct {
 }
 
 type Doctor struct {
+	ID      int    `json:"mhrsHekimId"`
 	Name    string `json:"ad"`
 	Surname string `json:"soyad"`
 	Gender  struct {
@@ -93,4 +95,10 @@ type NumericResponse struct {
 
 type SearchDoctorResponse struct {
 	Data []NumericResponse `json:"data"`
+}
+
+type SearchSlotResponse struct {
+	Data []struct {
+		Value string `json:"value"`
+	} `json:"data"`
 }
