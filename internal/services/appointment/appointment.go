@@ -7,6 +7,7 @@ import (
 	"github.com/anilonayy/mhrs-appointment-bot/internal/ui"
 	"github.com/anilonayy/mhrs-appointment-bot/internal/utils"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/anilonayy/mhrs-appointment-bot/config"
@@ -607,10 +608,10 @@ func Do(flow *models.Flow) error {
 						infoMessage := fmt.Sprintf(
 							"Found available slot: %s\nDoctor: %s\nHospital: %s\nExamination Place: %s\nSlot: %s",
 							hour.BaslangicZamani,
-							appointment.Doctor.Name+" "+appointment.Doctor.Surname,
-							appointment.Hospital.Name,
-							examinationPlace.MuayeneYeri.Adi,
-							hour.BaslangicZamani)
+							maskSensitiveInfo(appointment.Doctor.Name+" "+appointment.Doctor.Surname),
+							maskSensitiveInfo(appointment.Hospital.Name),
+							maskSensitiveInfo(examinationPlace.MuayeneYeri.Adi),
+							maskSensitiveInfo(hour.BaslangicZamani))
 						ui.PrintInfoMessage(infoMessage)
 
 						(*flow).Appointment = models.MakeAppointmentPayload{
@@ -635,6 +636,14 @@ func Do(flow *models.Flow) error {
 	}
 
 	return ErrNoAppointmentsFound
+}
+
+func maskSensitiveInfo(input string) string {
+	if len(input) <= 4 {
+		return input // Çok kısa ise, maskelenmez
+	}
+	// İlk iki ve son iki karakteri bırakıp, ortasını yıldızla dolduruyoruz
+	return input[:2] + strings.Repeat("*", len(input)-4) + input[len(input)-2:]
 }
 
 func makeAppointment(flow *models.Flow) error {

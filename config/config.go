@@ -39,5 +39,12 @@ func GetConfig() *URLConfig {
 		loadConfig()
 	}
 
+	if urlConfig.LoginURL == "" || urlConfig.ProvinceSearchURL == "" || urlConfig.DistrictSearchURL == "" ||
+		urlConfig.ClinicSearchURL == "" || urlConfig.HospitalSearchURL == "" || urlConfig.DoctorSearchURL == "" ||
+		urlConfig.AppointmentSearchURL == "" || urlConfig.SlotSearchURL == "" || urlConfig.CreateAppointmentURL == "" ||
+		urlConfig.FileName == "" {
+		panic("One or more URL configurations are not set")
+	}
+
 	return urlConfig
 }
