@@ -22,3 +22,21 @@ func CheckUnauthorizedError(resp string) bool {
 
 	return false
 }
+
+func CheckNeedAdvancedExpertError(resp string) bool {
+	data := make(map[string]any)
+
+	if err := json.Unmarshal([]byte(resp), &data); err != nil {
+		return false
+	}
+
+	if data["errors"] != nil {
+		code := data["errors"].([]any)[0].(map[string]any)["kodu"]
+
+		if code == constants.NEED_ADVANCED_EXPERT {
+			return true
+		}
+	}
+
+	return false
+}

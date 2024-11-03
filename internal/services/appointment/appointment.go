@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/anilonayy/mhrs-appointment-bot/internal/services/auth"
 	"github.com/anilonayy/mhrs-appointment-bot/internal/ui"
+	"github.com/anilonayy/mhrs-appointment-bot/internal/utils"
 	"strconv"
 	"time"
 
@@ -12,6 +13,11 @@ import (
 	"github.com/anilonayy/mhrs-appointment-bot/internal/constants"
 	"github.com/anilonayy/mhrs-appointment-bot/internal/models"
 	"github.com/anilonayy/mhrs-appointment-bot/pkg/resty"
+)
+
+var (
+	ErrNoAppointmentsFound = errors.New("no appointments found")
+	ErrDateRangeExpired    = errors.New("date range expired")
 )
 
 func getProvinces() (response []models.SearchProvinceResponse, err error) {
@@ -140,18 +146,18 @@ func SelectDistrict(flow *models.Flow) (err error) {
 	for _, d := range districts {
 		for _, inputDistrict := range selectedDistricts {
 			if inputDistrict == constants.NO_SELECTION {
-				(*flow).District = append((*flow).District, models.Option{Name: constants.NO_SELECTION, ID: constants.NO_SELECTION_CODE})
+				(*flow).Districts = append((*flow).Districts, models.Option{Name: constants.NO_SELECTION, ID: constants.NO_SELECTION_CODE})
 
 				return nil
 			}
 
 			if inputDistrict == d.Text {
-				(*flow).District = append((*flow).District, models.Option{Name: d.Text, ID: d.Value})
+				(*flow).Districts = append((*flow).Districts, models.Option{Name: d.Text, ID: d.Value})
 			}
 		}
 	}
 
-	if len((*flow).District) == 0 {
+	if len((*flow).Districts) == 0 {
 		return errors.New("no district selected")
 	}
 
@@ -165,7 +171,7 @@ func getClinics(flow *models.Flow) (response []models.NumericResponse, err error
 			return err
 		}
 
-		for _, district := range flow.District {
+		for _, district := range flow.Districts {
 			var singleResponse models.SearchClinicResponse
 
 			resp, err := resty.GetClient().R().
@@ -228,7 +234,7 @@ func getHospitals(flow *models.Flow) (response []models.NumericResponse, err err
 			return err
 		}
 
-		for _, district := range flow.District {
+		for _, district := range flow.Districts {
 			var singleResponse models.SearchClinicResponse
 
 			resp, err := resty.GetClient().R().
@@ -278,12 +284,12 @@ func SelectHospital(flow *models.Flow) (err error) {
 	for _, p := range hospitals {
 		for _, hospitalSelections := range hospitalSelections {
 			if hospitalSelections == constants.NO_SELECTION {
-				(*flow).Hospital = append((*flow).Hospital, models.Option{Name: constants.NO_SELECTION, ID: constants.NO_SELECTION_CODE})
+				(*flow).Hospitals = append((*flow).Hospitals, models.Option{Name: constants.NO_SELECTION, ID: constants.NO_SELECTION_CODE})
 				break
 			}
 
 			if hospitalSelections == p.Text {
-				(*flow).Hospital = append((*flow).Hospital, models.Option{Name: p.Text, ID: strconv.Itoa(p.Value)})
+				(*flow).Hospitals = append((*flow).Hospitals, models.Option{Name: p.Text, ID: strconv.Itoa(p.Value)})
 			}
 		}
 	}
@@ -298,7 +304,7 @@ func getDoctors(flow *models.Flow) (response []models.NumericResponse, err error
 			return err
 		}
 
-		for _, hospital := range flow.Hospital {
+		for _, hospital := range flow.Hospitals {
 			var singleResponse struct {
 				Data []models.NumericResponse `json:"data"`
 			}
@@ -349,12 +355,12 @@ func SelectDoctor(flow *models.Flow) (err error) {
 	for _, p := range doctors {
 		for _, doctor := range doctorSelections {
 			if doctor == constants.NO_SELECTION {
-				(*flow).Doctor = append((*flow).Doctor, models.Option{Name: constants.NO_SELECTION, ID: constants.NO_SELECTION_CODE})
+				(*flow).Doctors = append((*flow).Doctors, models.Option{Name: constants.NO_SELECTION, ID: constants.NO_SELECTION_CODE})
 				break
 			}
 
 			if doctor == p.Text {
-				(*flow).Doctor = append((*flow).Doctor, models.Option{Name: p.Text, ID: strconv.Itoa(p.Value)})
+				(*flow).Doctors = append((*flow).Doctors, models.Option{Name: p.Text, ID: strconv.Itoa(p.Value)})
 			}
 		}
 	}
@@ -366,8 +372,12 @@ func SelectDateRanges(flow *models.Flow) (err error) {
 	ui.GetInput("Please enter wanted appointment start date (YYYY-MM-DD): ", &flow.StartDate)
 	ui.GetInput("Please enter wanted appointment end date (YYYY-MM-DD): ", &flow.EndDate)
 
-	if flow.StartDate == "" || flow.EndDate == "" {
-		return nil
+	if flow.StartDate == "" {
+		flow.StartDate = time.Now().Format(time.DateOnly)
+	}
+
+	if flow.EndDate == "" {
+		flow.EndDate = time.Now().AddDate(0, 0, 30).Format(time.DateOnly)
 	}
 
 	if _, err := time.Parse(time.DateOnly, flow.StartDate); err != nil {
@@ -382,7 +392,7 @@ func SelectDateRanges(flow *models.Flow) (err error) {
 }
 
 func SelectSlotTimes(flow *models.Flow) (err error) {
-	slots := []string{"08:30-12:00", "13:00-16:30"}
+	slots := []string{constants.MORNING_SLOT, constants.AFTERNOON_SLOT}
 
 	ui.SelectOption("Please select your slot time: ", slots, &flow.SlotTime)
 
@@ -447,8 +457,8 @@ func filterAppointments(appointments []models.SingleAppointment, flow *models.Fl
 			dateFilter     = false
 		)
 
-		if len(flow.Doctor) > 0 && flow.Doctor[0].ID != constants.NO_SELECTION_CODE {
-			for _, doctor := range flow.Doctor {
+		if len(flow.Doctors) > 0 && flow.Doctors[0].ID != constants.NO_SELECTION_CODE {
+			for _, doctor := range flow.Doctors {
 				if strconv.Itoa(appointment.Doctor.ID) == doctor.ID {
 					doctorFilter = true
 				}
@@ -457,8 +467,8 @@ func filterAppointments(appointments []models.SingleAppointment, flow *models.Fl
 			doctorFilter = true
 		}
 
-		if flow.Hospital[0].ID != constants.NO_SELECTION_CODE {
-			for _, hospital := range flow.Hospital {
+		if flow.Hospitals[0].ID != constants.NO_SELECTION_CODE {
+			for _, hospital := range flow.Hospitals {
 				if appointment.Hospital.Name == hospital.Name {
 					hospitalFilter = true
 				}
@@ -467,16 +477,16 @@ func filterAppointments(appointments []models.SingleAppointment, flow *models.Fl
 			hospitalFilter = true
 		}
 
-		if flow.StartDate != "" && flow.EndDate != "" {
-			startDate, _ := time.Parse(time.DateOnly, flow.StartDate)
-			endDate, _ := time.Parse(time.DateOnly, flow.EndDate)
-			appointmentDate, _ := time.Parse(time.DateOnly, appointment.Date)
+		startDate, _ := time.Parse(time.DateOnly, flow.StartDate)
+		endDate, _ := time.Parse(time.DateOnly, flow.EndDate)
+		appointmentDate, appointmentErr := time.Parse(time.DateTime, appointment.StartDate.Date)
 
-			if appointmentDate.After(startDate) && appointmentDate.Before(endDate) {
-				dateFilter = true
-			}
-		} else {
+		if appointmentDate.After(startDate) && appointmentDate.Before(endDate) {
 			dateFilter = true
+		}
+
+		if appointmentErr != nil {
+			dateFilter = false
 		}
 
 		if doctorFilter && hospitalFilter && dateFilter {
@@ -488,22 +498,21 @@ func filterAppointments(appointments []models.SingleAppointment, flow *models.Fl
 	return filteredAppointments
 }
 
-func getSlots(flow *models.Flow) ([]models.SearchSlotResponse, error) {
-	var response []models.SearchSlotResponse
-	var payload = models.SearchAppointment{
+func getSlots(flow *models.Flow) (response models.SearchSlotResponse, err error) {
+	var payload = models.SearchSlot{
 		AksiyonID:         "200",
 		Cinsiyet:          "F",
 		MHRSIlID:          flow.Province.ID,
 		MHRSKlinikID:      flow.Clinic.ID,
-		MHRSKurumID:       flow.Hospital[0].ID,
+		MHRSKurumID:       flow.Hospitals[0].ID,
 		MuayeneYeriID:     constants.NO_SELECTION_CODE,
-		MHRSHekimID:       flow.Doctor[0].ID,
+		MHRSHekimID:       flow.Doctors[0].ID,
 		TumRandevular:     false,
 		EkRandevu:         false,
 		RandevuZamaniList: []string{},
 	}
 
-	var err = auth.WithSafeAuthorization(func() error {
+	err = auth.WithSafeAuthorization(func() error {
 		token, err := auth.GetJWTToken()
 		if err != nil {
 			return err
@@ -520,7 +529,9 @@ func getSlots(flow *models.Flow) ([]models.SearchSlotResponse, error) {
 		}
 
 		if resp.IsError() {
-			return errors.New(resp.String())
+			if utils.CheckNeedAdvancedExpertError(resp.String()) {
+				panic("Need advanced expert advise to make appointment for this clinic!")
+			}
 		}
 
 		return nil
@@ -534,39 +545,142 @@ func getSlots(flow *models.Flow) ([]models.SearchSlotResponse, error) {
 }
 
 func Do(flow *models.Flow) error {
+	isDateExpired, err := utils.CheckDateRangeExpire(flow.EndDate)
+	if err != nil {
+		return err
+	}
+
+	if isDateExpired {
+		return ErrDateRangeExpired
+	}
+
 	appointments, err := getAppointments(flow)
 	if err != nil {
 		return err
 	}
 
 	if len(appointments) == 0 {
-		ui.PrintInfoMessage("No appointments found.")
-
-		return nil
+		return ErrNoAppointmentsFound
 	}
 
 	appointments = filterAppointments(appointments, flow)
 
 	if len(appointments) == 0 {
-		ui.PrintInfoMessage("No appointments found for filters.")
-
-		return nil
+		return ErrNoAppointmentsFound
 	}
 
-	fmt.Printf("Found %d appointments, slots searching..", len(appointments))
+	ui.PrintInfoMessage(fmt.Sprintf("Found %d appointments, slots searching..", len(appointments)))
 
 	for _, appointment := range appointments {
-		(*flow).Doctor = []models.Option{{Name: appointment.Doctor.Name, ID: strconv.Itoa(appointment.Doctor.ID)}}
-		(*flow).Hospital = []models.Option{{Name: appointment.Hospital.Name, ID: strconv.Itoa(appointment.Hospital.ID)}}
+		(*flow).Doctors = []models.Option{{Name: appointment.Doctor.Name, ID: strconv.Itoa(appointment.Doctor.ID)}}
+		(*flow).Hospitals = []models.Option{{Name: appointment.Hospital.Name, ID: strconv.Itoa(appointment.Hospital.ID)}}
 
 		slot, err := getSlots(flow)
 		if err != nil {
-			// @todo: Fix this
 			return err
 		}
 
-		fmt.Println(slot)
+		for _, slotList := range slot.Data {
+			doctorSlotList := slotList.HekimSlotList[0]
+			examinationPlace := doctorSlotList.MuayeneYeriSlotList[0]
+
+			if examinationPlace.Bos == false {
+				continue
+			}
+
+			for _, hourSlotList := range examinationPlace.SaatSlotList {
+				if hourSlotList.Bos == false {
+					continue
+				}
+
+				for _, hour := range hourSlotList.SlotList {
+					if hour.Bos == false {
+						continue
+					}
+
+					ok, err := utils.CheckTimeSlot(flow.SlotTime, hour.BaslangicZamani)
+					if err != nil {
+						return err
+					}
+
+					if ok {
+						infoMessage := fmt.Sprintf(
+							"Found available slot: %s\nDoctor: %s\nHospital: %s\nExamination Place: %s\nSlot: %s",
+							hour.BaslangicZamani,
+							appointment.Doctor.Name+" "+appointment.Doctor.Surname,
+							appointment.Hospital.Name,
+							examinationPlace.MuayeneYeri.Adi,
+							hour.BaslangicZamani)
+						ui.PrintInfoMessage(infoMessage)
+
+						(*flow).Appointment = models.MakeAppointmentPayload{
+							BaslangicZamani: hour.BaslangicZamani,
+							BitisZamani:     hour.BitisZamani,
+							FkCetvelId:      hour.FkCetvelId,
+							FkSlotId:        hour.Id,
+							MuayeneYeriId:   examinationPlace.MuayeneYeri.Id,
+							RandevuNotu:     "",
+							Yenidogan:       false,
+						}
+
+						if err := makeAppointment(flow); err != nil {
+							return err
+						}
+
+						return nil
+					}
+				}
+			}
+		}
 	}
+
+	return ErrNoAppointmentsFound
+}
+
+func makeAppointment(flow *models.Flow) error {
+	var response struct {
+		Success bool `json:"success"`
+		Errors  []struct {
+			Message string `json:"mesaj"`
+			Code    string `json:"kodu"`
+		}
+		Infos []struct {
+			Message string `json:"mesaj"`
+			Code    string `json:"kodu"`
+		}
+	}
+	err := auth.WithSafeAuthorization(func() error {
+		token, err := auth.GetJWTToken()
+		if err != nil {
+			return err
+		}
+
+		resp, err := resty.GetClient().R().
+			SetAuthToken(token).
+			SetBody((*flow).Appointment).
+			SetResult(&response).
+			Post(config.GetConfig().CreateAppointmentURL)
+
+		if err != nil {
+			return err
+		}
+
+		if resp.IsError() {
+			return errors.New(resp.String())
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if !response.Success {
+		return errors.New("appointment could not be created here is the reason:" + response.Errors[0].Message)
+	}
+
+	ui.PrintInfoMessage("Appointment created successfully! Message:" + response.Infos[0].Message)
 
 	return nil
 }
