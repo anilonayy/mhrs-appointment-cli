@@ -1,6 +1,7 @@
 # MHRS Appointment CLI
 
-Brief description of your project.
+With this project, you can experience a real appointment booking process by providing filters through the CLI and having it check for an available appointment every 15 minutes. The advantage of this project is that it operates independently within a Docker container. Once an appointment is found, the process terminates. You will be notified with an appointment confirmation email sent by the relevant organization.
+
 
 ## Table of Contents
 
@@ -10,7 +11,6 @@ Brief description of your project.
 - [Usage](#usage)
 - [Notification](#notification)
 - [Result](#result)
-- [Features of Project](#features)
 - [Sorumluluk Reddi (TR)](#sorumluluk-reddi-tr)
 - [Disclaimer (EN)](#disclaimer-en)
 
@@ -55,10 +55,6 @@ You should fill the `.env.example` file before the run.
 ## Result
 - You will see the available appointments.
 ![image](assets/result.png)
-
-## Features of Project
-With this project, you can experience a real appointment booking process by providing filters through the CLI and having it check for an available appointment every 15 minutes. The advantage of this project is that it operates independently within a Docker container. Once an appointment is found, the process terminates. You will be notified with an appointment confirmation email sent by the relevant organization.
-
 
 ## Sorumluluk Reddi (TR)
 
