@@ -14,7 +14,7 @@ import (
 	"github.com/anilonayy/mhrs-appointment-bot/pkg/resty"
 )
 
-func GetProvinces() (response []models.SearchProvinceResponse, err error) {
+func getProvinces() (response []models.SearchProvinceResponse, err error) {
 	err = auth.WithSafeAuthorization(func() error {
 		token, err := auth.GetJWTToken()
 		if err != nil {
@@ -45,7 +45,7 @@ func GetProvinces() (response []models.SearchProvinceResponse, err error) {
 }
 
 func SelectProvince(flow *models.Flow) (err error) {
-	provinces, err := GetProvinces()
+	provinces, err := getProvinces()
 	if err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func SelectProvince(flow *models.Flow) (err error) {
 	return err
 }
 
-func GetDistricts(province models.Option) (response []models.SearchDistrictResponse, err error) {
+func getDistricts(province models.Option) (response []models.SearchDistrictResponse, err error) {
 	err = auth.WithSafeAuthorization(func() error {
 		token, err := auth.GetJWTToken()
 		if err != nil {
@@ -120,7 +120,7 @@ func GetDistricts(province models.Option) (response []models.SearchDistrictRespo
 }
 
 func SelectDistrict(flow *models.Flow) (err error) {
-	districts, err := GetDistricts(flow.Province)
+	districts, err := getDistricts(flow.Province)
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func SelectDistrict(flow *models.Flow) (err error) {
 	return nil
 }
 
-func GetClinics(flow *models.Flow) (response []models.NumericResponse, err error) {
+func getClinics(flow *models.Flow) (response []models.NumericResponse, err error) {
 	err = auth.WithSafeAuthorization(func() error {
 		token, err := auth.GetJWTToken()
 		if err != nil {
@@ -195,7 +195,7 @@ func GetClinics(flow *models.Flow) (response []models.NumericResponse, err error
 }
 
 func SelectClinic(flow *models.Flow) (err error) {
-	clinics, err := GetClinics(flow)
+	clinics, err := getClinics(flow)
 	if err != nil {
 		return err
 	}
@@ -221,7 +221,7 @@ func SelectClinic(flow *models.Flow) (err error) {
 	return nil
 }
 
-func GetHospitals(flow *models.Flow) (response []models.NumericResponse, err error) {
+func getHospitals(flow *models.Flow) (response []models.NumericResponse, err error) {
 	err = auth.WithSafeAuthorization(func() error {
 		token, err := auth.GetJWTToken()
 		if err != nil {
@@ -258,7 +258,7 @@ func GetHospitals(flow *models.Flow) (response []models.NumericResponse, err err
 }
 
 func SelectHospital(flow *models.Flow) (err error) {
-	hospitals, err := GetHospitals(flow)
+	hospitals, err := getHospitals(flow)
 	if err != nil {
 		return err
 	}
@@ -291,7 +291,7 @@ func SelectHospital(flow *models.Flow) (err error) {
 	return nil
 }
 
-func GetDoctors(flow *models.Flow) (response []models.NumericResponse, err error) {
+func getDoctors(flow *models.Flow) (response []models.NumericResponse, err error) {
 	err = auth.WithSafeAuthorization(func() error {
 		token, err := auth.GetJWTToken()
 		if err != nil {
@@ -330,7 +330,7 @@ func GetDoctors(flow *models.Flow) (response []models.NumericResponse, err error
 }
 
 func SelectDoctor(flow *models.Flow) (err error) {
-	doctors, err := GetDoctors(flow)
+	doctors, err := getDoctors(flow)
 	if err != nil {
 		return err
 	}
@@ -389,7 +389,7 @@ func SelectSlotTimes(flow *models.Flow) (err error) {
 	return nil
 }
 
-func GetAppointments(flow *models.Flow) ([]models.SingleAppointment, error) {
+func getAppointments(flow *models.Flow) ([]models.SingleAppointment, error) {
 	var response models.AppointmentResponse
 	var payload = models.SearchAppointment{
 		AksiyonID:         "200",
@@ -437,11 +437,6 @@ func GetAppointments(flow *models.Flow) ([]models.SingleAppointment, error) {
 	}
 
 	return response.Data.Hastane, nil
-}
-
-func formatAppointment(appointments models.SingleAppointment) string {
-	//return fmt.Sprintf("Hospital: %s, District: %s, Date: %s, Doctor: %s", appointments.Hospital.Name, appointments.Hospital.District, appointments.Date, appointments.Doctor.Name)
-	return fmt.Sprintf("Doctor: %s, District: %s, Date: %s, Hospital: %s", appointments.Doctor.Name+" "+appointments.Doctor.Surname, appointments.Hospital.District, appointments.Date, appointments.Hospital.Name[0:15]+"...")
 }
 
 func filterAppointments(appointments []models.SingleAppointment, flow *models.Flow) (filteredAppointments []models.SingleAppointment) {
@@ -493,7 +488,7 @@ func filterAppointments(appointments []models.SingleAppointment, flow *models.Fl
 	return filteredAppointments
 }
 
-func GetSlots(flow *models.Flow) ([]models.SearchSlotResponse, error) {
+func getSlots(flow *models.Flow) ([]models.SearchSlotResponse, error) {
 	var response []models.SearchSlotResponse
 	var payload = models.SearchAppointment{
 		AksiyonID:         "200",
@@ -539,7 +534,7 @@ func GetSlots(flow *models.Flow) ([]models.SearchSlotResponse, error) {
 }
 
 func Do(flow *models.Flow) error {
-	appointments, err := GetAppointments(flow)
+	appointments, err := getAppointments(flow)
 	if err != nil {
 		return err
 	}
@@ -564,7 +559,7 @@ func Do(flow *models.Flow) error {
 		(*flow).Doctor = []models.Option{{Name: appointment.Doctor.Name, ID: strconv.Itoa(appointment.Doctor.ID)}}
 		(*flow).Hospital = []models.Option{{Name: appointment.Hospital.Name, ID: strconv.Itoa(appointment.Hospital.ID)}}
 
-		slot, err := GetSlots(flow)
+		slot, err := getSlots(flow)
 		if err != nil {
 			// @todo: Fix this
 			return err
